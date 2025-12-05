@@ -86,7 +86,7 @@ query_instances() {
     --filters "Name=tag:Environment,Values=$ENVIRONMENT" \
     "Name=instance-state-name,Values=running" \
     --query 'Reservations[].Instances[].[InstanceId, Tags[?Key==`Name`].Value | [0], PublicIpAddress]' \
-    --output text 2>/dev/null || echo ""
+    --output text 2>/dev/null | sort -t"$(printf '\t')" -k2,2 || echo ""
 }
 
 parse_instance_list() {
