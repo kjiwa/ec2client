@@ -15,18 +15,19 @@ usage() {
   cat >&2 <<EOF
 Usage: $0 [OPTIONS]
 
-Required:
+Optional:
   -t TAG_KEY        Tag key to filter instances
   -v TAG_VALUE      Tag value to filter instances
-
-Optional:
   -p PROFILE        AWS profile
   -r REGION         AWS region (default: us-east-2)
   -c METHOD         Connection method (ssh or ssm, default: ssm)
   -u USER           SSH user (default: ec2-user)
   -k KEYFILE        SSH private key file path
 
+Note: If -t is specified, -v must also be specified (and vice versa)
+
 Examples:
+  $0
   $0 -t Environment -v prod
   $0 -t Environment -v staging -p myprofile -c ssh -k ~/.ssh/mykey.pem
   $0 -t Team -v backend -r us-west-2
@@ -57,8 +58,11 @@ parse_options() {
 }
 
 validate_parameters() {
-  [ -z "$TAG_KEY" ] && error_exit "Tag key parameter (-t) is required"
-  [ -z "$TAG_VALUE" ] && error_exit "Tag value parameter (-v) is required"
+  if [ -n "$TAG_KEY" ] || [ -n "$TAG_VALUE" ]; then
+    if [ -z "$TAG_KEY" ] || [ -z "$TAG_VALUE" ]; then
+      error_exit "Both tag key (-t) and tag value (-v) must be provided together"
+    fi
+  fi
 
   case "$CONNECT_METHOD" in
   ssh | ssm) ;;
@@ -85,13 +89,22 @@ build_aws_command() {
 }
 
 query_instances() {
-  echo "Searching for EC2 instances with $TAG_KEY=$TAG_VALUE..." >&2
+  if [ -n "$TAG_KEY" ]; then
+    echo "Searching for EC2 instances with $TAG_KEY=$TAG_VALUE..." >&2
 
-  $AWS_CMD ec2 describe-instances \
-    --filters "Name=tag:$TAG_KEY,Values=$TAG_VALUE" \
-    "Name=instance-state-name,Values=running" \
-    --query 'Reservations[].Instances[].[InstanceId, Tags[?Key==`Name`].Value | [0], PublicIpAddress]' \
-    --output text 2>/dev/null | sort -t"$(printf '\t')" -k2,2 || echo ""
+    $AWS_CMD ec2 describe-instances \
+      --filters "Name=tag:$TAG_KEY,Values=$TAG_VALUE" \
+      "Name=instance-state-name,Values=running" \
+      --query 'Reservations[].Instances[].[InstanceId, Tags[?Key==`Name`].Value | [0], PublicIpAddress]' \
+      --output text 2>/dev/null | sort -t"$(printf '\t')" -k2,2 || echo ""
+  else
+    echo "Searching for all running EC2 instances..." >&2
+
+    $AWS_CMD ec2 describe-instances \
+      --filters "Name=instance-state-name,Values=running" \
+      --query 'Reservations[].Instances[].[InstanceId, Tags[?Key==`Name`].Value | [0], PublicIpAddress]' \
+      --output text 2>/dev/null | sort -t"$(printf '\t')" -k2,2 || echo ""
+  fi
 }
 
 parse_instance_list() {
