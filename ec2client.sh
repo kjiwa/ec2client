@@ -7,7 +7,8 @@ REGION="us-east-2"
 CONNECT_METHOD="ssm"
 SSH_USER="ec2-user"
 SSH_KEY_FILE=""
-ENVIRONMENT=""
+TAG_KEY=""
+TAG_VALUE=""
 SELECTED_ID=""
 
 usage() {
@@ -15,7 +16,8 @@ usage() {
 Usage: $0 [OPTIONS]
 
 Required:
-  -e ENVIRONMENT    Environment tag value
+  -t TAG_KEY        Tag key to filter instances
+  -v TAG_VALUE      Tag value to filter instances
 
 Optional:
   -p PROFILE        AWS profile
@@ -25,8 +27,9 @@ Optional:
   -k KEYFILE        SSH private key file path
 
 Examples:
-  $0 -e prod
-  $0 -e staging -p myprofile -c ssh -k ~/.ssh/mykey.pem
+  $0 -t Environment -v prod
+  $0 -t Environment -v staging -p myprofile -c ssh -k ~/.ssh/mykey.pem
+  $0 -t Team -v backend -r us-west-2
 EOF
   exit 1
 }
@@ -37,10 +40,11 @@ error_exit() {
 }
 
 parse_options() {
-  while getopts "p:e:r:c:u:k:h" opt; do
+  while getopts "p:t:v:r:c:u:k:h" opt; do
     case "$opt" in
     p) AWS_PROFILE="$OPTARG" ;;
-    e) ENVIRONMENT="$OPTARG" ;;
+    t) TAG_KEY="$OPTARG" ;;
+    v) TAG_VALUE="$OPTARG" ;;
     r) REGION="$OPTARG" ;;
     c) CONNECT_METHOD="$OPTARG" ;;
     u) SSH_USER="$OPTARG" ;;
@@ -53,7 +57,8 @@ parse_options() {
 }
 
 validate_parameters() {
-  [ -z "$ENVIRONMENT" ] && error_exit "Environment parameter (-e) is required"
+  [ -z "$TAG_KEY" ] && error_exit "Tag key parameter (-t) is required"
+  [ -z "$TAG_VALUE" ] && error_exit "Tag value parameter (-v) is required"
 
   case "$CONNECT_METHOD" in
   ssh | ssm) ;;
@@ -80,10 +85,10 @@ build_aws_command() {
 }
 
 query_instances() {
-  echo "Searching for EC2 instances with Environment=$ENVIRONMENT..." >&2
+  echo "Searching for EC2 instances with $TAG_KEY=$TAG_VALUE..." >&2
 
   $AWS_CMD ec2 describe-instances \
-    --filters "Name=tag:Environment,Values=$ENVIRONMENT" \
+    --filters "Name=tag:$TAG_KEY,Values=$TAG_VALUE" \
     "Name=instance-state-name,Values=running" \
     --query 'Reservations[].Instances[].[InstanceId, Tags[?Key==`Name`].Value | [0], PublicIpAddress]' \
     --output text 2>/dev/null | sort -t"$(printf '\t')" -k2,2 || echo ""

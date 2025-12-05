@@ -1,6 +1,6 @@
 # ec2client.sh
 
-Connect to EC2 instances by environment tag using SSH or AWS Systems Manager (SSM).
+Connect to EC2 instances by tag key-value pair using SSH or AWS Systems Manager (SSM).
 
 ## Requirements
 
@@ -12,12 +12,13 @@ Connect to EC2 instances by environment tag using SSH or AWS Systems Manager (SS
 ## Usage
 
 ```bash
-./ec2client.sh -e <environment> [OPTIONS]
+./ec2client.sh -t <tag-key> -v <tag-value> [OPTIONS]
 ```
 
 ### Required Parameters
 
-- `-e ENVIRONMENT` - Environment tag value to filter instances
+- `-t TAG_KEY` - Tag key to filter instances
+- `-v TAG_VALUE` - Tag value to filter instances
 
 ### Optional Parameters
 
@@ -29,24 +30,24 @@ Connect to EC2 instances by environment tag using SSH or AWS Systems Manager (SS
 
 ## Examples
 
-Connect via SSM to production environment:
+Connect via SSM using Environment tag:
 ```bash
-./ec2client.sh -e prod
+./ec2client.sh -t Environment -v prod
 ```
 
 Connect via SSH with custom profile and key:
 ```bash
-./ec2client.sh -e staging -p myprofile -c ssh -k ~/.ssh/mykey.pem
+./ec2client.sh -t Environment -v staging -p myprofile -c ssh -k ~/.ssh/mykey.pem
 ```
 
-Connect to specific region:
+Connect using custom tag:
 ```bash
-./ec2client.sh -e test -r us-west-2
+./ec2client.sh -t Team -v backend -r us-west-2
 ```
 
 ## Behavior
 
-- Queries running EC2 instances with matching Environment tag
+- Queries running EC2 instances with matching tag key-value pair
 - Displays instances sorted alphabetically by name
 - Auto-connects if only one instance found
 - Prompts for selection if multiple instances found
