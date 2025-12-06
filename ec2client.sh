@@ -57,21 +57,31 @@ parse_options() {
   shift $((OPTIND - 1))
 }
 
-validate_parameters() {
+validate_tag() {
   if [ -n "$TAG_KEY" ] || [ -n "$TAG_VALUE" ]; then
     if [ -z "$TAG_KEY" ] || [ -z "$TAG_VALUE" ]; then
       error_exit "Both tag key (-t) and tag value (-v) must be provided together"
     fi
   fi
+}
 
+validate_connect_method() {
   case "$CONNECT_METHOD" in
   ssh | ssm) ;;
   *) error_exit "Connection method must be: ssh or ssm" ;;
   esac
+}
 
+validate_ssh_key_file() {
   if [ -n "$SSH_KEY_FILE" ] && [ ! -f "$SSH_KEY_FILE" ]; then
     error_exit "SSH private key file not found: $SSH_KEY_FILE"
   fi
+}
+
+validate_parameters() {
+  validate_tag
+  validate_connect_method
+  validate_ssh_key_file
 }
 
 check_dependencies() {
@@ -152,7 +162,6 @@ select_instance_number() {
 get_instance_by_index() {
   instance_ids="$1"
   index="$2"
-
   echo "$instance_ids" | sed -n "${index}p"
 }
 
@@ -187,7 +196,6 @@ connect_ssh() {
   echo "Connecting to $SELECTED_ID via SSH..." >&2
 
   ip_address=$(get_instance_ip "$SELECTED_ID")
-
   if [ -z "$ip_address" ] || [ "$ip_address" = "None" ]; then
     error_exit "Instance does not have a public IP address for SSH connection"
   fi
@@ -214,6 +222,7 @@ connect() {
   case "$CONNECT_METHOD" in
   ssh) connect_ssh ;;
   ssm) connect_ssm ;;
+  *) error_exit "Connection method must be: ssh or ssm" ;;
   esac
 }
 
@@ -224,7 +233,6 @@ main() {
   build_aws_command
 
   instance_data=$(query_instances)
-
   if [ -z "$instance_data" ]; then
     error_exit "No instances found"
   fi
