@@ -9,12 +9,6 @@ Interactive AWS EC2 instance connection tool with support for SSH and AWS System
 - AWS Systems Manager Session Manager plugin
 - Appropriate IAM permissions for EC2 and SSM operations
 
-## Installation
-
-```bash
-chmod +x ec2client.sh
-```
-
 ## Usage
 
 ```
