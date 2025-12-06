@@ -99,22 +99,19 @@ build_aws_command() {
 }
 
 query_instances() {
+  filters="Name=instance-state-name,Values=running"
+
   if [ -n "$TAG_KEY" ]; then
     echo "Searching for EC2 instances with $TAG_KEY=$TAG_VALUE..." >&2
-
-    $AWS_CMD ec2 describe-instances \
-      --filters "Name=tag:$TAG_KEY,Values=$TAG_VALUE" \
-      "Name=instance-state-name,Values=running" \
-      --query 'Reservations[].Instances[].[InstanceId, Tags[?Key==`Name`].Value | [0], PublicIpAddress]' \
-      --output text 2>/dev/null | sort -t"$(printf '\t')" -k2,2 || echo ""
+    filters="Name=tag:$TAG_KEY,Values=$TAG_VALUE $filters"
   else
     echo "Searching for all running EC2 instances..." >&2
-
-    $AWS_CMD ec2 describe-instances \
-      --filters "Name=instance-state-name,Values=running" \
-      --query 'Reservations[].Instances[].[InstanceId, Tags[?Key==`Name`].Value | [0], PublicIpAddress]' \
-      --output text 2>/dev/null | sort -t"$(printf '\t')" -k2,2 || echo ""
   fi
+
+  $AWS_CMD ec2 describe-instances \
+    --filters $filters \
+    --query 'Reservations[].Instances[].[InstanceId, Tags[?Key==`Name`].Value | [0], PublicIpAddress]' \
+    --output text 2>/dev/null | sort -t"$(printf '\t')" -k2,2 || echo ""
 }
 
 parse_instance_list() {

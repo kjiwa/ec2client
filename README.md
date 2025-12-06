@@ -1,64 +1,92 @@
 # ec2client.sh
 
-Connect to EC2 instances by tag key-value pair using SSH or AWS Systems Manager (SSM).
+Interactive AWS EC2 instance connection tool with support for SSH and AWS Systems Manager (SSM) Session Manager.
 
-## Requirements
+## Prerequisites
 
-- AWS CLI
-- AWS Systems Manager Session Manager plugin
+- AWS CLI configured with appropriate credentials
 - SSH client
-- Valid AWS credentials configured
+- AWS Systems Manager Session Manager plugin
+- Appropriate IAM permissions for EC2 and SSM operations
+
+## Installation
+
+```bash
+chmod +x ec2client.sh
+```
 
 ## Usage
 
-```bash
-./ec2client.sh [OPTIONS]
 ```
+ec2client.sh [OPTIONS]
 
-### Optional Parameters
-
-- `-t TAG_KEY` - Tag key to filter instances
-- `-v TAG_VALUE` - Tag value to filter instances (required if -t is specified)
-- `-p PROFILE` - AWS profile name
-- `-r REGION` - AWS region (default: us-east-2)
-- `-c METHOD` - Connection method: `ssh` or `ssm` (default: ssm)
-- `-u USER` - SSH user (default: ec2-user, only applies to ssh method)
-- `-k KEYFILE` - Path to SSH private key file (only applies to ssh method)
-
-**Note:** If `-t` is specified, `-v` must also be specified (and vice versa). If neither is specified, all running instances in the region are queried.
+Optional:
+  -t TAG_KEY        Tag key to filter instances
+  -v TAG_VALUE      Tag value to filter instances
+  -p PROFILE        AWS profile
+  -r REGION         AWS region (default: us-east-2)
+  -c METHOD         Connection method (ssh or ssm, default: ssm)
+  -u USER           SSH user (default: ec2-user)
+  -k KEYFILE        SSH private key file path
+```
 
 ## Examples
 
-Connect to any running instance:
+Connect to any running instance using SSM:
 ```bash
 ./ec2client.sh
 ```
 
-Connect via SSM using Environment tag:
+Filter by environment tag:
 ```bash
-./ec2client.sh -t Environment -v prod
+./ec2client.sh -t Environment -v production
 ```
 
-Connect via SSH with custom profile and key:
+Connect via SSH with specific key:
 ```bash
-./ec2client.sh -t Environment -v staging -p myprofile -c ssh -k ~/.ssh/mykey.pem
+./ec2client.sh -t Team -v backend -c ssh -k ~/.ssh/mykey.pem
 ```
 
-Connect using custom tag:
+Use different AWS profile and region:
 ```bash
-./ec2client.sh -t Team -v backend -r us-west-2
+./ec2client.sh -t Environment -v staging -p myprofile -r us-west-2
 ```
 
-## Behavior
+## Sample Output
 
-- Queries running EC2 instances (optionally filtered by tag key-value pair)
-- Displays instances sorted alphabetically by name
-- Auto-connects if only one instance found
-- Prompts for selection if multiple instances found
-- SSH method requires public IP address on instance
-- SSM method works without public IP but requires SSM agent installed
+```
+Searching for EC2 instances with Environment=production...
 
-## Exit Codes
+1. api-server-01 (i-0123456789abcdef0): 54.123.45.67
+2. api-server-02 (i-0fedcba987654321): 54.123.45.68
+3. worker-node-01 (i-0a1b2c3d4e5f6g7h8): 18.234.56.78
+4. worker-node-02 (i-0h8g7f6e5d4c3b2a1): 18.234.56.79
+5. database-primary (i-01234abcd5678efgh): no-public-ip
 
-- `0` - Successful connection
-- `1` - Error (missing parameters, no instances found, connection failed)
+Select instance (1-5): 3
+Connecting to i-0a1b2c3d4e5f6g7h8 via SSM...
+
+Starting session with SessionId: user-0a1b2c3d4e5f6g7h8
+sh-4.2$ 
+```
+
+## Connection Methods
+
+### SSM (Default)
+- No public IP required
+- Uses AWS Systems Manager Session Manager
+- Requires SSM agent running on instance
+- Instance must have appropriate IAM role
+
+### SSH
+- Requires public IP address
+- Requires SSH key file (specified with -k or default key)
+- Port 22 must be accessible
+- Security group must allow SSH access
+
+## Notes
+
+- Both tag key and tag value must be specified together
+- SSH connections use agent forwarding (-A flag)
+- Script validates dependencies before execution
+- Only running instances are displayed
